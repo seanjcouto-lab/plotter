@@ -144,11 +144,37 @@ export async function hydrateFromCloud(shopId: string = SHOP_ID): Promise<PullCo
       if (r.error) throw r.error;
     }
 
+    // Postgres returns `numeric` columns as STRINGS (to preserve precision).
+    // Coerce to JS numbers here so downstream code can trust the declared types.
+    const num = (v: unknown): number => (v == null ? 0 : Number(v));
+    const opt = (v: unknown): number | undefined =>
+      v == null ? undefined : Number(v);
+
     const vendors = (vendorsRes.data ?? []) as Vendor[];
-    const parts = (partsRes.data ?? []) as Part[];
-    const events = (eventsRes.data ?? []) as PartEvent[];
-    const pricing = (pricingRes.data ?? []) as VendorPricing[];
-    const purchases = (purchasesRes.data ?? []) as CustomerPurchase[];
+    const parts = ((partsRes.data ?? []) as Part[]).map((p) => ({
+      ...p,
+      dealer_cost: num(p.dealer_cost),
+      msrp: num(p.msrp),
+      min_stock_qty: num(p.min_stock_qty),
+      quantity_on_hand: num(p.quantity_on_hand),
+      quantity_on_order: num(p.quantity_on_order),
+    }));
+    const events = ((eventsRes.data ?? []) as PartEvent[]).map((e) => ({
+      ...e,
+      quantity: num(e.quantity),
+      unit_cost: opt(e.unit_cost),
+      unit_price: opt(e.unit_price),
+    }));
+    const pricing = ((pricingRes.data ?? []) as VendorPricing[]).map((p) => ({
+      ...p,
+      dealer_cost: num(p.dealer_cost),
+      msrp: num(p.msrp),
+    }));
+    const purchases = ((purchasesRes.data ?? []) as CustomerPurchase[]).map((p) => ({
+      ...p,
+      quantity: num(p.quantity),
+      price_sold: num(p.price_sold),
+    }));
 
     await db.transaction(
       'rw',
