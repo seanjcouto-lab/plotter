@@ -207,6 +207,26 @@ export async function hydrateFromCloud(shopId: string = SHOP_ID): Promise<PullCo
   });
 }
 
+// Wipe local Dexie tables. Called from sign-out so the next sign-in starts
+// from cloud truth, not a stale local cache.
+export async function clearLocal(): Promise<void> {
+  await db.transaction(
+    'rw',
+    db.vendors,
+    db.parts,
+    db.events,
+    db.vendor_pricing,
+    db.customer_purchases,
+    async () => {
+      await db.vendors.clear();
+      await db.parts.clear();
+      await db.events.clear();
+      await db.vendor_pricing.clear();
+      await db.customer_purchases.clear();
+    },
+  );
+}
+
 // First sign-in flow: push local rows to cloud (in case there are any),
 // then pull cloud back down as truth. UUID PKs prevent duplicates on upsert.
 export async function pushLocalThenHydrate(shopId: string = SHOP_ID): Promise<PullCounts | null> {

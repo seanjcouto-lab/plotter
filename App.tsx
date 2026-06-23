@@ -16,7 +16,7 @@ import {
   onAuthChange,
   signOut,
 } from '@/services/supabaseClient';
-import { onSyncStatusChange, pushLocalThenHydrate, type SyncStatus } from '@/services/syncService';
+import { clearLocal, onSyncStatusChange, pushLocalThenHydrate, type SyncStatus } from '@/services/syncService';
 
 type PartDetailOrigin =
   | { kind: 'dashboard' }
@@ -93,6 +93,11 @@ export function App() {
 
   const handleSignOut = async () => {
     await signOut();
+    // Clear local Dexie so the next sign-in re-hydrates fresh from cloud.
+    // Otherwise stale local rows survive across sessions and confuse anyone
+    // who wiped cloud expecting a blank slate.
+    await clearLocal().catch((err) => console.warn('Local clear failed', err));
+    setSeeded(false);
     setAuth({ status: 'signed-out' });
   };
 
